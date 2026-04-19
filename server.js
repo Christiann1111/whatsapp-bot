@@ -24,4 +24,6 @@ app.post("/webhook", (req, res) => {
   res.sendStatus(200);
 });
 
-app.listen(3000, () => console.log("Servidor corriendo"));
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => console.log("Servidor corriendo"));
