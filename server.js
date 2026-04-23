@@ -6,8 +6,8 @@ app.use(express.json());
 
 // 🔐 CONFIG (pegá tus datos reales)
 const VERIFY_TOKEN = "12345";
-const ACCESS_TOKEN = "TU_TOKEN_DE_META";
-const PHONE_NUMBER_ID = "TU_PHONE_NUMBER_ID";
+const ACCESS_TOKEN = "EAATNMGn35f8BRQQJ0mMarAwrpOjeHeE4ek75WKA4P5wZCEZBbIIwFE6t5xBoSpo8yZCZBxjPGHCotuYQ7kd6MXsNsfJEZB1ZBluoS62Juiv18EnKtCkqROlGRvkSo5ZBtz67a2YooaZCba4X6r8gYQkFHkxMnBagxSxTszUknzZCTg9eQPhCnZAwZBIqGHwfnA2Ja6WZAII0seZCqKyL6yKSXT5WPjtbtxDheSEPZCpAzk1O4lR5WtTjsmrZBLkjSaTQofsfZAl2Uq1PL1dy8kgpoJLqef7L";
+const PHONE_NUMBER_ID = "1115979908259591";
 
 // ✅ Verificación webhook (NO tocar)
 app.get("/webhook", (req, res) => {
