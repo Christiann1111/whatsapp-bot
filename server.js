@@ -1,15 +1,15 @@
 import express from "express";
-import fetch from "node-fetch";
+import axios from "axios";
 
 const app = express();
 app.use(express.json());
 
-// 🔐 CONFIG (pegá tus datos acá)
+// 🔐 CONFIG (pegá tus datos reales)
 const VERIFY_TOKEN = "12345";
 const ACCESS_TOKEN = "TU_TOKEN_DE_META";
 const PHONE_NUMBER_ID = "TU_PHONE_NUMBER_ID";
 
-// ✅ Verificación de webhook
+// ✅ Verificación webhook (NO tocar)
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -22,7 +22,7 @@ app.get("/webhook", (req, res) => {
   }
 });
 
-// 📩 Recibir mensajes
+// 🤖 Recibir y responder mensajes
 app.post("/webhook", async (req, res) => {
   try {
     console.log("📩 Evento recibido:");
@@ -30,43 +30,46 @@ app.post("/webhook", async (req, res) => {
 
     const entry = req.body.entry?.[0];
     const changes = entry?.changes?.[0];
-    const message = changes?.value?.messages?.[0];
+    const value = changes?.value;
 
-    if (message) {
+    if (value?.messages) {
+      const message = value.messages[0];
+
       const fromRaw = message.from;
-      const from = fromRaw.replace(/\D/g, ""); // 🔥 limpia el número
+      const from = fromRaw.replace(/\D/g, ""); // 🔥 limpia formato número
+
       const text = message.text?.body;
 
       console.log("📱 FROM RAW:", fromRaw);
       console.log("📱 FROM LIMPIO:", from);
       console.log("💬 MENSAJE:", text);
 
-      // 📤 Responder
-      await fetch(
+      // 🚀 RESPUESTA
+      await axios.post(
         `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
         {
-          method: "POST",
+          messaging_product: "whatsapp",
+          to: from,
+          text: {
+            body: `🔥 Bot activo: ${text}`,
+          },
+        },
+        {
           headers: {
             Authorization: `Bearer ${ACCESS_TOKEN}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            messaging_product: "whatsapp",
-            to: from,
-            text: {
-              body: `🔥 Bot activo: ${text}`,
-            },
-          }),
         }
       );
     }
 
     res.sendStatus(200);
   } catch (error) {
-    console.error("❌ Error:", error);
+    console.error("❌ Error:", error.response?.data || error.message);
     res.sendStatus(500);
   }
 });
 
+// 🌐 Servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("🚀 Servidor corriendo"));
