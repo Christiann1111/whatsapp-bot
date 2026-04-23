@@ -1,72 +1,55 @@
-import express from "express";
-import fetch from "node-fetch";
+from flask import Flask, request
+import requests
 
-const app = express();
-app.use(express.json());
+app = Flask(__name__)
 
-// 🔐 CONFIG (pegá tus datos acá)
-const VERIFY_TOKEN = "12345";
-const ACCESS_TOKEN = "EAATNMGn35f8BRcI5M5506TTgMPAwZADy06nHWqkWcC7AFh0miuCRBkB4LoeynxAiZA1xClx5VJlIVqmHGxRTmD5aJuVlG83ernf2851s60RJT6QttbhloAxE5gaoUzUyVwksovUnbxvOoiUuwkUcf3ZAb2UdEgcZCYa2H2CkaYgyRQSLvzAcECcSijSYQw3G4byikZCzxGFMjZBghQmW6HNbshGlmoRrpvhm2QXQRyZCMFJj2AGE7mkBXHBlK3qfxac0XsVEwjEo3bonEozLrxZC";
-const PHONE_NUMBER_ID = "1115979908259591";
+VERIFY_TOKEN = "12345"
+ACCESS_TOKEN = "TU_TOKEN"
+PHONE_NUMBER_ID = "TU_PHONE_ID"
 
-// ✅ Verificación de webhook
-app.get("/webhook", (req, res) => {
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
+# 🔐 Verificación
+@app.route("/webhook", methods=["GET"])
+def verify():
+    mode = request.args.get("hub.mode")
+    token = request.args.get("hub.verify_token")
+    challenge = request.args.get("hub.challenge")
 
-  if (mode && token === VERIFY_TOKEN) {
-    return res.status(200).send(challenge);
-  } else {
-    return res.sendStatus(403);
-  }
-});
+    if mode and token == VERIFY_TOKEN:
+        return challenge, 200
+    return "Error", 403
 
-// 📩 Recibir mensajes
-app.post("/webhook", async (req, res) => {
-  try {
-    console.log("📩 Evento recibido:");
-    console.log(JSON.stringify(req.body, null, 2));
+# 🤖 Recibir mensajes
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    data = request.get_json()
+    print("📩 Evento:", data)
 
-    const entry = req.body.entry?.[0];
-    const changes = entry?.changes?.[0];
-    const message = changes?.value?.messages?.[0];
+    try:
+        message = data["entry"][0]["changes"][0]["value"]["messages"][0]
+        from_number = message["from"]
+        text = message["text"]["body"]
 
-    if (message) {
-      const fromRaw = message.from;
-      const from = fromRaw.replace(/\D/g, ""); // 🔥 limpia el número
-      const text = message.text?.body;
+        print("Mensaje:", text)
 
-      console.log("📱 FROM RAW:", fromRaw);
-      console.log("📱 FROM LIMPIO:", from);
-      console.log("💬 MENSAJE:", text);
+        url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
 
-      // 📤 Responder
-      await fetch(
-        `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${ACCESS_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            messaging_product: "whatsapp",
-            to: from,
-            text: {
-              body: `🔥 Bot activo: ${text}`,
-            },
-          }),
+        headers = {
+            "Authorization": f"Bearer {ACCESS_TOKEN}",
+            "Content-Type": "application/json"
         }
-      );
-    }
 
-    res.sendStatus(200);
-  } catch (error) {
-    console.error("❌ Error:", error);
-    res.sendStatus(500);
-  }
-});
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": from_number,
+            "text": {"body": f"🔥 Bot activo: {text}"}
+        }
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("🚀 Servidor corriendo"));
+        requests.post(url, json=payload, headers=headers)
+
+    except Exception as e:
+        print("❌ Error:", e)
+
+    return "ok", 200
+
+if __name__ == "__main__":
+    app.run(port=5000)
