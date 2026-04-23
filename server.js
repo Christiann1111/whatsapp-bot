@@ -9,7 +9,7 @@ const VERIFY_TOKEN = "12345";
 const ACCESS_TOKEN = "EAATNMGn35f8BRR6yb95H9sHdluvp86uwfUyQfPFZCNCZCr5DhZCpZCgGOtKdmSzWVsZC6F0mQOlHCrmr4Jw3aKVbE8aQSZCsC9Or6lQmC9vdAsjp4f69qMZCXhE6ZCOgDDjw5kKv0yifDjYKDXYi8qWWQrzmCgX97P7oZChtXKGtL81yX4fJGVoCKKghPFSgPZAWOhoJ4Igcqjiq5fUdtvNoZCN30gVOlZCAP6ZAs2lZA1vEVA0fweMk8tmcNj0ySrF5pOMoZCvUtkqwOWEKohJgdZAaoWaL";
 const PHONE_NUMBER_ID = "1115979908259591";
 
-// ✅ Verificación webhook (NO tocar)
+// ✅ Verificación webhook
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -36,7 +36,12 @@ app.post("/webhook", async (req, res) => {
       const message = value.messages[0];
 
       const fromRaw = message.from;
-      const from = fromRaw.replace(/\D/g, ""); // 🔥 limpia formato número
+      let from = fromRaw.replace(/\D/g, "");
+
+      // 🔥 FIX ARGENTINA (remueve el 9)
+      if (from.startsWith("549")) {
+        from = "54" + from.slice(3);
+      }
 
       const text = message.text?.body;
 
