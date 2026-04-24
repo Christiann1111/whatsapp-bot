@@ -48,46 +48,60 @@ app.post("/webhook", async (req, res) => {
 
       console.log("Mensaje usuario:", userText);
 
-      // 🧠 LLAMADA A IA
-      const aiResponse = await openai.chat.completions.create({
-  model: "gpt-4.1-mini",
-  messages: [
+   // 📱 usuario
+const userId = from;
+
+// 🧠 inicializar memoria si no existe
+if (!conversations[userId]) {
+  conversations[userId] = [
     {
       role: "system",
       content: `
 Sos un asistente de una inmobiliaria.
 
 Tu objetivo es:
-- calificar clientes (compra o alquiler)
-- obtener zona
-- obtener presupuesto
+- saber si quiere comprar o alquilar
+- saber zona
+- saber presupuesto
 - llevar a agendar visita
 
 Reglas:
-- respuestas cortas (máx 2-3 líneas)
-- tono humano y cercano
-- hacer 1 pregunta por mensaje
-- no bombardear con info
+- no repetir preguntas ya respondidas
+- 1 pregunta por mensaje
+- respuestas cortas
+- tono humano
 
-Flujo ideal:
+Flujo:
 1. Saludo
-2. ¿Compra o alquiler?
+2. Tipo (compra/alquiler)
 3. Zona
 4. Presupuesto
-5. Ofrecer visita
-
-Si ya dio info → no repetir preguntas.
-Si duda → ayudarlo.
-Siempre avanzar la conversación.
+5. Visita
 `
-    },
-    {
-      role: "user",
-      content: userText
     }
-  ],
+  ];
+}
+
+// ➕ agregar mensaje del usuario
+conversations[userId].push({
+  role: "user",
+  content: userText
 });
 
+// 🤖 IA con memoria
+const aiResponse = await openai.chat.completions.create({
+  model: "gpt-4.1-mini",
+  messages: conversations[userId],
+});
+
+// respuesta IA
+const reply = aiResponse.choices[0].message.content.trim();
+
+// ➕ guardar respuesta del bot
+conversations[userId].push({
+  role: "assistant",
+  content: reply
+});
       const reply =
         aiResponse.choices[0].message.content || "No pude responder 😅";
 
