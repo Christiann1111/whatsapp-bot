@@ -11,12 +11,15 @@ const ACCESS_TOKEN = "EAATNMGn35f8BRaInM6as7UqJt2AK2pIKOZCwwehZBNZBZCebElSU4D0ZA
 const PHONE_NUMBER_ID = "1115979908259591";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
-// 🤖 Inicializar OpenAI
+// 🤖 OpenAI
 const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
 });
 
-// ✅ Verificación
+// 🧠 Memoria en RAM
+const conversations = {};
+
+// ✅ Verificación webhook
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -29,7 +32,7 @@ app.get("/webhook", (req, res) => {
   }
 });
 
-// 🤖 Webhook
+// 🤖 Webhook principal
 app.post("/webhook", async (req, res) => {
   try {
     const value = req.body.entry?.[0]?.changes?.[0]?.value;
@@ -46,17 +49,15 @@ app.post("/webhook", async (req, res) => {
 
       const userText = message.text?.body;
 
-      console.log("Mensaje usuario:", userText);
+      console.log("📩 Usuario:", from);
+      console.log("💬 Mensaje:", userText);
 
-   // 📱 usuario
-const userId = from;
-
-// 🧠 inicializar memoria si no existe
-if (!conversations[userId]) {
-  conversations[userId] = [
-    {
-      role: "system",
-      content: `
+      // 🧠 Inicializar conversación si no existe
+      if (!conversations[from]) {
+        conversations[from] = [
+          {
+            role: "system",
+            content: `
 Sos un asistente de una inmobiliaria.
 
 Tu objetivo es:
@@ -66,46 +67,43 @@ Tu objetivo es:
 - llevar a agendar visita
 
 Reglas:
-- no repetir preguntas ya respondidas
+- no repetir preguntas
 - 1 pregunta por mensaje
 - respuestas cortas
 - tono humano
 
 Flujo:
 1. Saludo
-2. Tipo (compra/alquiler)
+2. Tipo (compra o alquiler)
 3. Zona
 4. Presupuesto
 5. Visita
 `
-    }
-  ];
-}
+          }
+        ];
+      }
 
-// ➕ agregar mensaje del usuario
-conversations[userId].push({
-  role: "user",
-  content: userText
-});
+      // ➕ agregar mensaje del usuario
+      conversations[from].push({
+        role: "user",
+        content: userText
+      });
 
-// 🤖 IA con memoria
-const aiResponse = await openai.chat.completions.create({
-  model: "gpt-4.1-mini",
-  messages: conversations[userId],
-});
+      // 🤖 IA con memoria
+      const aiResponse = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: conversations[from],
+      });
 
-// respuesta IA
-const reply = aiResponse.choices[0].message.content.trim();
+      const reply = aiResponse.choices[0].message.content.trim();
 
-// ➕ guardar respuesta del bot
-conversations[userId].push({
-  role: "assistant",
-  content: reply
-});
-      const reply =
-        aiResponse.choices[0].message.content || "No pude responder 😅";
+      // ➕ guardar respuesta del bot
+      conversations[from].push({
+        role: "assistant",
+        content: reply
+      });
 
-      // 📤 Enviar respuesta
+      // 📤 Enviar a WhatsApp
       await axios.post(
         `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
         {
@@ -131,5 +129,6 @@ conversations[userId].push({
   }
 });
 
+// 🌐 Servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("🚀 Bot con IA corriendo"));
