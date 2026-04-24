@@ -7,7 +7,7 @@ app.use(express.json());
 
 // 🔐 CONFIG
 const VERIFY_TOKEN = "12345";
-const ACCESS_TOKEN = "ACCESS TOKEN DE META EL QUE SE GENERA ";
+const ACCESS_TOKEN = "EAATNMGn35f8BRaInM6as7UqJt2AK2pIKOZCwwehZBNZBZCebElSU4D0ZAl1j2JMI4pM4DpX0U6Vm1vWYszhs3pLkZC6GfPjmfBVsSieWKMwLPkTkyXJSUWITwq0iOTT6gpmXFMORF9ATp5QRHuTIFWZBzIy1y2b9uHnSfZCtZBBVfCOuzwd0k4AkrmTga8K8M1PZCZAp72NcNWK73Qy6ZAHQ7YxB4CgVZBMuZBvPsBfER7XQDvN7ByyXmCz2iZAIP1AikFxbhGF6K8HBTCYEnNf78vyCdo4 ";
 const PHONE_NUMBER_ID = "1115979908259591";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
@@ -50,18 +50,43 @@ app.post("/webhook", async (req, res) => {
 
       // 🧠 LLAMADA A IA
       const aiResponse = await openai.chat.completions.create({
-        model: "gpt-4.1-mini",
-        messages: [
-          {
-            role: "system",
-            content: "Sos un asistente útil, amable y profesional para WhatsApp.",
-          },
-          {
-            role: "user",
-            content: userText,
-          },
-        ],
-      });
+  model: "gpt-4.1-mini",
+  messages: [
+    {
+      role: "system",
+      content: `
+Sos un asistente de una inmobiliaria.
+
+Tu objetivo es:
+- calificar clientes (compra o alquiler)
+- obtener zona
+- obtener presupuesto
+- llevar a agendar visita
+
+Reglas:
+- respuestas cortas (máx 2-3 líneas)
+- tono humano y cercano
+- hacer 1 pregunta por mensaje
+- no bombardear con info
+
+Flujo ideal:
+1. Saludo
+2. ¿Compra o alquiler?
+3. Zona
+4. Presupuesto
+5. Ofrecer visita
+
+Si ya dio info → no repetir preguntas.
+Si duda → ayudarlo.
+Siempre avanzar la conversación.
+`
+    },
+    {
+      role: "user",
+      content: userText
+    }
+  ],
+});
 
       const reply =
         aiResponse.choices[0].message.content || "No pude responder 😅";
