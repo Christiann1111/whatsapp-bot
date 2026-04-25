@@ -1,7 +1,6 @@
 import express from "express";
 import axios from "axios";
 import OpenAI from "openai";
-import fs from "fs";
 
 const app = express();
 app.use(express.json());
@@ -12,6 +11,9 @@ const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
+// 🔗 Webhook de Make (Google Sheets)
+const MAKE_WEBHOOK_URL = "PEGÁ_TU_URL_ACÁ";
+
 // 🤖 OpenAI
 const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
@@ -19,28 +21,6 @@ const openai = new OpenAI({
 
 // 🧠 Memoria en RAM
 const conversations = {};
-
-// 💾 Guardar leads
-const saveLead = (phone, message) => {
-  const filePath = "./leads.json";
-
-  let leads = [];
-
-  if (fs.existsSync(filePath)) {
-    const data = fs.readFileSync(filePath);
-    leads = JSON.parse(data);
-  }
-
-  const newLead = {
-    phone,
-    message,
-    date: new Date().toISOString(),
-  };
-
-  leads.push(newLead);
-
-  fs.writeFileSync(filePath, JSON.stringify(leads, null, 2));
-};
 
 // ✅ Verificación webhook
 app.get("/webhook", (req, res) => {
@@ -60,7 +40,7 @@ app.post("/webhook", async (req, res) => {
   try {
     const value = req.body.entry?.[0]?.changes?.[0]?.value;
 
-    // 🔥 FILTRO IMPORTANTE (evita respuestas automáticas)
+    // 🔥 FILTRO (evita respuestas automáticas)
     if (!value?.messages || value.messages[0]?.type !== "text") {
       return res.sendStatus(200);
     }
@@ -81,8 +61,16 @@ app.post("/webhook", async (req, res) => {
     console.log("📩 Usuario:", from);
     console.log("💬 Mensaje:", userText);
 
-    // 💾 Guardar lead
-    saveLead(from, userText);
+    // 📊 ENVIAR A GOOGLE SHEETS (Make)
+    try {
+      await axios.post(MAKE_WEBHOOK_URL, {
+        phone: from,
+        message: userText,
+        date: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.log("⚠️ Error enviando a Make:", err.message);
+    }
 
     // 🧠 Inicializar conversación
     if (!conversations[from]) {
@@ -162,4 +150,4 @@ Flujo:
 
 // 🌐 Servidor
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("🚀 Bot con IA corriendo"));
+app.listen(PORT, () => console.log("🚀 Bot con IA + CRM corriendo"));
