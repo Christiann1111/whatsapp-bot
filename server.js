@@ -152,6 +152,6 @@ app.get("/webhook", (req, res) => {
 });
 
 // 🚀 Servidor
-app.listen(3000, () => {
+app.listen(process.env.PORT || 3000, () => {
   console.log("🚀 Bot con IA corriendo");
 });
