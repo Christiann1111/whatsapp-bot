@@ -1,14 +1,15 @@
 import express from "express";
 import axios from "axios";
 import OpenAI from "openai";
+import fs from "fs";
 
 const app = express();
 app.use(express.json());
 
-// 🔐 CONFIG
+// 🔐 VARIABLES (Railway)
 const VERIFY_TOKEN = "12345";
-const ACCESS_TOKEN = "EAATNMGn35f8BRaInM6as7UqJt2AK2pIKOZCwwehZBNZBZCebElSU4D0ZAl1j2JMI4pM4DpX0U6Vm1vWYszhs3pLkZC6GfPjmfBVsSieWKMwLPkTkyXJSUWITwq0iOTT6gpmXFMORF9ATp5QRHuTIFWZBzIy1y2b9uHnSfZCtZBBVfCOuzwd0k4AkrmTga8K8M1PZCZAp72NcNWK73Qy6ZAHQ7YxB4CgVZBMuZBvPsBfER7XQDvN7ByyXmCz2iZAIP1AikFxbhGF6K8HBTCYEnNf78vyCdo4 ";
-const PHONE_NUMBER_ID = "1115979908259591";
+const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // 🤖 OpenAI
@@ -18,6 +19,28 @@ const openai = new OpenAI({
 
 // 🧠 Memoria en RAM
 const conversations = {};
+
+// 💾 Guardar leads
+const saveLead = (phone, message) => {
+  const filePath = "./leads.json";
+
+  let leads = [];
+
+  if (fs.existsSync(filePath)) {
+    const data = fs.readFileSync(filePath);
+    leads = JSON.parse(data);
+  }
+
+  const newLead = {
+    phone,
+    message,
+    date: new Date().toISOString(),
+  };
+
+  leads.push(newLead);
+
+  fs.writeFileSync(filePath, JSON.stringify(leads, null, 2));
+};
 
 // ✅ Verificación webhook
 app.get("/webhook", (req, res) => {
@@ -37,27 +60,36 @@ app.post("/webhook", async (req, res) => {
   try {
     const value = req.body.entry?.[0]?.changes?.[0]?.value;
 
-    if (value?.messages) {
-      const message = value.messages[0];
+    // 🔥 FILTRO IMPORTANTE (evita respuestas automáticas)
+    if (!value?.messages || value.messages[0]?.type !== "text") {
+      return res.sendStatus(200);
+    }
 
-      let from = message.from.replace(/\D/g, "");
+    const message = value.messages[0];
 
-      // 🇦🇷 Fix Argentina
-      if (from.startsWith("549")) {
-        from = "54" + from.slice(3);
-      }
+    let from = message.from.replace(/\D/g, "");
 
-      const userText = message.text?.body;
+    // 🇦🇷 Fix Argentina
+    if (from.startsWith("549")) {
+      from = "54" + from.slice(3);
+    }
 
-      console.log("📩 Usuario:", from);
-      console.log("💬 Mensaje:", userText);
+    const userText = message.text?.body;
 
-      // 🧠 Inicializar conversación si no existe
-      if (!conversations[from]) {
-        conversations[from] = [
-          {
-            role: "system",
-            content: `
+    if (!userText) return res.sendStatus(200);
+
+    console.log("📩 Usuario:", from);
+    console.log("💬 Mensaje:", userText);
+
+    // 💾 Guardar lead
+    saveLead(from, userText);
+
+    // 🧠 Inicializar conversación
+    if (!conversations[from]) {
+      conversations[from] = [
+        {
+          role: "system",
+          content: `
 Sos un asistente de una inmobiliaria.
 
 Tu objetivo es:
@@ -79,48 +111,47 @@ Flujo:
 4. Presupuesto
 5. Visita
 `
-          }
-        ];
-      }
-
-      // ➕ agregar mensaje del usuario
-      conversations[from].push({
-        role: "user",
-        content: userText
-      });
-
-      // 🤖 IA con memoria
-      const aiResponse = await openai.chat.completions.create({
-        model: "gpt-4.1-mini",
-        messages: conversations[from],
-      });
-
-      const reply = aiResponse.choices[0].message.content.trim();
-
-      // ➕ guardar respuesta del bot
-      conversations[from].push({
-        role: "assistant",
-        content: reply
-      });
-
-      // 📤 Enviar a WhatsApp
-      await axios.post(
-        `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
-        {
-          messaging_product: "whatsapp",
-          to: from,
-          text: {
-            body: reply,
-          },
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${ACCESS_TOKEN}`,
-            "Content-Type": "application/json",
-          },
         }
-      );
+      ];
     }
+
+    // ➕ mensaje usuario
+    conversations[from].push({
+      role: "user",
+      content: userText,
+    });
+
+    // 🤖 IA
+    const aiResponse = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: conversations[from],
+    });
+
+    const reply = aiResponse.choices[0].message.content.trim();
+
+    // ➕ guardar respuesta
+    conversations[from].push({
+      role: "assistant",
+      content: reply,
+    });
+
+    // 📤 Enviar a WhatsApp
+    await axios.post(
+      `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to: from,
+        text: {
+          body: reply,
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
     res.sendStatus(200);
   } catch (error) {
