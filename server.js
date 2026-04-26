@@ -7,7 +7,7 @@ app.use(express.json());
 
 // 🔐 VARIABLES (Railway)
 const VERIFY_TOKEN = "12345";
-const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL;
@@ -153,5 +153,5 @@ app.get("/webhook", (req, res) => {
 
 // 🚀 Servidor
 app.listen(process.env.PORT || 3000, () => {
-  console.log("🚀 Bot con IA corriendo");
+  console.log("🚀 Bot VERSION 2 con IA corriendo");
 });
