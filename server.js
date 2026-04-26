@@ -117,6 +117,7 @@ app.post("/webhook", async (req, res) => {
 
       // 🤖 respuesta IA
       const reply = await getAIResponse(text);
+      console.log("🤖 RESPUESTA IA:", reply);
 
       // 📤 enviar respuesta
       await sendWhatsAppMessage(from, reply);
