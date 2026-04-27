@@ -63,6 +63,12 @@ async function getAIResponse(message) {
   }
 }
 
+let from = fromRaw.replace(/\D/g, "");
+
+// 🔥 Quitar el 9 de Argentina
+if (from.startsWith("549")) {
+  from = "54" + from.slice(3);
+}
 // 📤 Enviar mensaje WhatsApp
 async function sendWhatsAppMessage(to, text) {
   try {
