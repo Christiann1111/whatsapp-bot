@@ -11,15 +11,6 @@ const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL;
 
-// 🛡️ evitar crashes
-process.on("uncaughtException", (err) => {
-  console.log("💥 Error no controlado:", err);
-});
-
-process.on("unhandledRejection", (err) => {
-  console.log("💥 Promesa fallida:", err);
-});
-
 // 🧠 Detectar intención
 function detectIntent(text) {
   text = text.toLowerCase();
@@ -31,7 +22,7 @@ function detectIntent(text) {
   return "general";
 }
 
-// 🤖 IA (OpenAI)
+// 🤖 IA
 async function getAIResponse(message) {
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -59,20 +50,14 @@ async function getAIResponse(message) {
     return data.choices?.[0]?.message?.content || "No entendí tu mensaje.";
   } catch (err) {
     console.log("❌ Error IA:", err);
-    return "Hubo un error con la IA.";
+    return "Error con IA";
   }
 }
 
-let from = fromRaw.replace(/\D/g, "");
-
-// 🔥 Quitar el 9 de Argentina
-if (from.startsWith("549")) {
-  from = "54" + from.slice(3);
-}
 // 📤 Enviar mensaje WhatsApp
 async function sendWhatsAppMessage(to, text) {
   try {
-    console.log("📤 ENTRANDO A WHATSAPP:", to, text);
+    console.log("📤 ENVIANDO A:", to);
 
     const response = await fetch(
       `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
@@ -107,45 +92,50 @@ async function sendToMake(data) {
 
     await fetch(MAKE_WEBHOOK_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
 
     console.log("📊 Enviado a Make");
   } catch (err) {
-    console.log("❌ Error enviando a Make:", err);
+    console.log("❌ Error Make:", err);
   }
 }
 
-// 🧠 Memoria simple (evitar bucles)
+// 🧠 Memoria
 const userState = {};
 
-// 📩 Webhook WhatsApp
+// 📩 Webhook
 app.post("/webhook", async (req, res) => {
   try {
-    console.log("📩 Evento recibido:", JSON.stringify(req.body, null, 2));
-
     const entry = req.body.entry?.[0];
     const change = entry?.changes?.[0];
     const message = change?.value?.messages?.[0];
 
     if (!message) return res.sendStatus(200);
 
-    const from = message.from;
+    const fromRaw = message.from;
     const text = message.text?.body || "";
     const name =
       change?.value?.contacts?.[0]?.profile?.name || "Cliente";
 
-    console.log("📱 Usuario:", from);
+    console.log("📩 Usuario RAW:", fromRaw);
     console.log("💬 Mensaje:", text);
 
+    // 🔥 NORMALIZAR NÚMERO
+    let to = fromRaw.replace(/\D/g, "");
+
+    if (to.startsWith("549")) {
+      to = "54" + to.slice(3);
+    }
+
+    console.log("📱 Usuario NORMALIZADO:", to);
+
     // evitar loop
-    if (userState[from] === text) {
+    if (userState[to] === text) {
       return res.sendStatus(200);
     }
-    userState[from] = text;
+    userState[to] = text;
 
     const intent = detectIntent(text);
 
@@ -154,11 +144,11 @@ app.post("/webhook", async (req, res) => {
     console.log("🤖 RESPUESTA IA:", reply);
 
     // 📤 enviar WhatsApp
-    await sendWhatsAppMessage(from, reply);
+    await sendWhatsAppMessage(to, reply);
 
     // 📊 enviar a Make
     await sendToMake({
-      from,
+      from: to,
       name,
       message: text,
       intent,
@@ -172,23 +162,22 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
-// ✅ Verificación webhook
+// ✅ Verificación
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
   if (mode === "subscribe" && token === VERIFY_TOKEN) {
-    console.log("✅ Webhook verificado");
     return res.status(200).send(challenge);
   } else {
     return res.sendStatus(403);
   }
 });
 
-// 🚀 Servidor (Railway)
+// 🚀 Servidor
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log("🚀 Bot FINAL corriendo en puerto", PORT);
+  console.log("🚀 Bot FINAL corriendo");
 });
