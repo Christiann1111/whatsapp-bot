@@ -58,7 +58,7 @@ async function getAIResponse(message) {
 // 📤 Enviar mensaje WhatsApp
 async function sendWhatsAppMessage(to, text) {
   try {
-    await fetch(`https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`, {
+    const response = await fetch(`https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${WHATSAPP_TOKEN}`,
@@ -71,11 +71,16 @@ async function sendWhatsAppMessage(to, text) {
         text: { body: text }
       })
     });
+
+    const data = await response.json();
+
+    console.log("📤 WHATSAPP STATUS:", response.status);
+    console.log("📤 WHATSAPP RESPONSE:", JSON.stringify(data, null, 2));
+
   } catch (err) {
-    console.log("Error enviando mensaje:", err);
+    console.log("❌ Error enviando mensaje:", err);
   }
 }
-
 // 🔗 Enviar a Make
 async function sendToMake(data) {
   try {
